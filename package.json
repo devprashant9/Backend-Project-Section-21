@@ -1,0 +1,19 @@
+{
+  "name": "project-management-system",
+  "version": "1.0.0",
+  "description": "A \"Project Management System\" with different RBAC",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch index.js"
+  },
+  "keywords": [
+    "backend",
+    "project"
+  ],
+  "author": "Prashant Kumar Jha",
+  "license": "ISC",
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}
