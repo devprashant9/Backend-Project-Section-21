@@ -2,12 +2,12 @@ import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
 import dotenv from "dotenv";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const filename = fileURLToPath(import.meta.url);
+const directory = dirname(filename);
 
 // Always load the backend/.env file
 dotenv.config({
-    path: resolve(__dirname, "../../.env")
+    path: resolve(directory, "../../.env")
 });
 
 // Freeze and export config so it's immutable

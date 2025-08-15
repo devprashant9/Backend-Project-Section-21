@@ -1,5 +1,3 @@
-
-
 class Response {
     /**
      * @param {number} statusCode - HTTP status code (e.g., 200, 201, 400)
