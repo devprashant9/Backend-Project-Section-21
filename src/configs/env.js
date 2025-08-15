@@ -15,6 +15,16 @@ const envConfig = Object.freeze({
     port: process.env.PORT,
     mongoDB: process.env.MONGO_URI,
     clientURL: process.env.CLIENT_URL,
+    accessTokenSecret: process.env.JWT_TOKEN_SECRET,
+    accessTokenExpiresIn: process.env.JWT_TOKEN_EXPIRES_IN,
+    refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET,
+    refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN,
+    mailtrap: {
+        host: process.env.MAILTRAP_SMTP_HOST,
+        port: process.env.MAILTRAP_SMTP_PORT,
+        user: process.env.MAILTRAP_SMTP_USER,
+        pass: process.env.MAILTRAP_SMTP_PASS,
+    },
     nodeEnv: process.env.NODE_ENV || "development",
     isDev: (process.env.NODE_ENV || "development") === "development",
     isProd: (process.env.NODE_ENV || "development") === "production"
