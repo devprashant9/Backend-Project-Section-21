@@ -36,6 +36,14 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: null,
     },
+    userEmailVerificationToken: {
+        type: String,
+        default: null,
+    },
+    userEmailVerificationTokenExpiry: {
+        type: String,
+        default: null,
+    },
     userForgotPasswordToken: {
         type: String,
         default: null,
@@ -45,14 +53,14 @@ const userSchema = new mongoose.Schema({
         default: null,
     },
     userAvatar: {
-        type: {
-            url: String,
-            localPath: String,
+        url: {
+            type: String, // direct image URL
+            required: false,
         },
-        default: {
-            url: "default_avatar.png",
-            localPath: "default_avatar.png",
-        }
+        public_id: {
+            type: String, // Cloudinary public_id or S3 object key
+            required: false,
+        },
     }
 }, {
     timestamps: true,

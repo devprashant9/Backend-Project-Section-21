@@ -1,6 +1,6 @@
 import Router from "express";
 import { healthCheck } from "../controllers/healthCheck.controllers.js";
-import { asyncHandler } from "../middlewares/asyncHandler.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
 
 const router = Router();

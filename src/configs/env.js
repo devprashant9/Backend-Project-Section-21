@@ -27,7 +27,12 @@ const envConfig = Object.freeze({
     },
     nodeEnv: process.env.NODE_ENV || "development",
     isDev: (process.env.NODE_ENV || "development") === "development",
-    isProd: (process.env.NODE_ENV || "development") === "production"
+    isProd: (process.env.NODE_ENV || "development") === "production",
+    cloudinary: {
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+        apiKey: process.env.CLOUDINARY_API_KEY,
+        apiSecret: process.env.CLOUDINARY_SECRET_KEY,
+    },
 });
 
 export default envConfig;

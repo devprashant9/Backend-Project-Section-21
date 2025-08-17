@@ -1,4 +1,4 @@
-class Response {
+class StandardResponse {
     /**
      * @param {number} statusCode - HTTP status code (e.g., 200, 201, 400)
      * @param {any} data - The main payload of the response
@@ -32,4 +32,4 @@ class Response {
     }
 }
 
-export default Response;
+export default StandardResponse;
