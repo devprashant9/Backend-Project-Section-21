@@ -5,7 +5,6 @@ import StandardError from "../utils/StandardError.js";
 export const authenticateUserRequest = (req, res, next) => {
     try {
         let token;
-        console.log(req.cookies)
 
         const authHeader = req.headers["authorization"]?.trim();
         if (authHeader && authHeader.startsWith("Bearer ")) {

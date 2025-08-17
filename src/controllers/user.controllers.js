@@ -47,7 +47,7 @@ export const userRegister = async (req, res) => {
         emailService.generateWelcomeEmail(
             newUser.userFullName,
             newUser.userEmail,
-            `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${tempUnhashedToken}`
+            `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${tempUnhashedToken}`
         )
     );
 
@@ -153,7 +153,7 @@ export const userVerifyEmail = async (req, res) => {
     });
 
     if (!getUser) {
-        throw new StandardError(400, "Email Verification Token Expired");
+        throw new StandardError(400, "Email Verification Link Expired");
     }
 
     getUser.userEmailVerificationToken = undefined;
@@ -164,7 +164,7 @@ export const userVerifyEmail = async (req, res) => {
 
     await getUser.save({ validateBeforeSave: false });
 
-    return res.status(200), json(200, { userEmailVerified: true }, "Email Verified Successfully");
+    return res.status(200).json(new StandardResponse(200, { userEmailVerification: true }, "User Email Verified Successfully"));
 };
 
 export const resendUserVerifyEmail = async (req, res) => {
@@ -180,35 +180,152 @@ export const resendUserVerifyEmail = async (req, res) => {
         throw new StandardError(409, "User Email Already Verified")
     }
 
-    const { tempUnhashedToken, tempHashedToken, tempTokenExpiry } = newUser.generateTemporaryToken();
+    const { tempUnhashedToken, tempHashedToken, tempTokenExpiry } = findUser.generateTemporaryToken();
 
-    newUser.userEmailVerificationToken = tempHashedToken;
-    newUser.userEmailVerificationTokenExpiry = tempTokenExpiry;
+    findUser.userEmailVerificationToken = tempHashedToken;
+    findUser.userEmailVerificationTokenExpiry = tempTokenExpiry;
 
-    await newUser.save({ validateBeforeSave: false });
+    await findUser.save({ validateBeforeSave: false });
 
     await emailService.sendEmail(
         emailService.generateWelcomeEmail(
-            newUser.userFullName,
-            newUser.userEmail,
-            `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${tempUnhashedToken}`
+            findUser.userFullName,
+            findUser.userEmail,
+            `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${tempUnhashedToken}`
         )
     );
 
-    return res.status(200).json(new StandardResponse(200, {}, "Verification Email Has Been Sent to Registered Email"))
+    return res.status(200).json(new StandardResponse(200, {
+        verificationEmail: "Sent on Registered Email Address"
+    }, "Verification Email Has Been Re-Sent to Registered Email"))
 };
 
-export const generateNewAccessTokens = (req, res) => {
+export const generateNewAccessTokens = async (req, res) => {
     const incomingRefreshToken = req.cookies.userRefreshToken || req.body.userRefreshToken;
 
-    if(!incomingRefreshToken) {
-        throw new StandardError(401, "Unauthorized Access")
+    if (!incomingRefreshToken) {
+        throw new StandardError(401, "Not Authorized To Access")
     }
 
+    const decodedRefreshToken = jwt.verify(incomingRefreshToken, envConfig.refreshTokenSecret);
 
+    const findUser = await User.findById(decodedRefreshToken.id);
+    if (!findUser) {
+        throw new StandardError(404, "Invalid Refresh Token Provided. User Not Found");
+    }
 
+    if (incomingRefreshToken !== findUser.userRefreshToken) {
+        throw new StandardError(400, "Refresh Token Expired");
+    }
 
+    const { userAccessToken, userRefreshToken: newRefreshToken } = await generateAccessTokenRefreshToken(findUser._id);
+
+    findUser.userRefreshToken = newRefreshToken;
+    await findUser.save({ validateBeforeSave: false });
+
+    const response = new StandardResponse(
+        200,
+        { userAccessToken, userRefreshToken: newRefreshToken },
+        "Access Token Refreshed"
+    );
+
+    return res
+        .status(200)
+        .cookie("userAccessToken", userAccessToken, { httpOnly: true, secure: true })
+        .cookie("userRefreshToken", newRefreshToken, { httpOnly: true, secure: true })
+        .json(response.toJSON());
 }
 
+export const forgotPasswordRequest = async (req, res) => {
+    const { userEmail } = req.body;
+
+    const findUser = await User.findOne({ userEmail });
+
+    if (!findUser) {
+        throw new StandardError(404, "User Not Found");
+    }
+
+    const { tempUnhashedToken, tempHashedToken, tempTokenExpiry } = findUser.generateTemporaryToken();
+
+    findUser.userForgotPasswordToken = tempHashedToken;
+    findUser.userForgotPasswordTokenExpiry = tempTokenExpiry;
+
+    await findUser.save({ validateBeforeSave: false });
+
+    await emailService.sendEmail(
+        emailService.generatePasswordResetEmail(
+            findUser.userFullName,
+            findUser.userEmail,
+            `${req.protocol}://${req.get("host")}/api/v1/auth/forgot-password/${tempUnhashedToken}`
+        )
+    );
+
+    const response = new StandardResponse(200, {
+        passwordResetMailSent: true
+    }, "Reset Password Mail Send Successfully");
+
+    return res.status(200).json(response.toJSON());
+}
+
+export const resetForgotPassword = async (req, res) => {
+    const { resetPasswordToken } = req.params;
+    const { userNewPassword } = req.body;
+
+    const hashedResetPasswordToken = crypto
+        .createHash("sha256")
+        .update(resetPasswordToken)
+        .digest("hex");
+
+    const findUser = await User.findOne({
+        userForgotPasswordToken: hashedResetPasswordToken,
+        userForgotPasswordTokenExpiry: { $gt: Date.now() }
+    })
+
+    if (!findUser) {
+        throw new StandardError(489, "Token is Inavlid or Expired");
+    }
+
+    findUser.userForgotPasswordToken = undefined;
+    findUser.userForgotPasswordTokenExpiry = undefined;
+
+    findUser.userPassword = userNewPassword;
+    await findUser.save({ validateBeforeSave: false });
+
+    if (findUser.userForgotPasswordToken !== hashedResetPasswordToken) {
+        throw new StandardError(400, "Inavlid Password Reset Link");
+    }
+
+    const response = new StandardResponse(200, { passwordChanged: true }, "Password Reset Successfull");
+
+    return res.status(200).json(response.toJSON());
+};
+
+export const changePassword = async (req, res) => {
+    const { userOldPassword, userNewPassword } = req.body;
+    const userId = req.user?.id;
+
+    const findUser = await User.findById(userId);
+    if (!findUser) {
+        throw new StandardError(404, "User Not Found");
+    }
+
+    const isPasswordValid = findUser.comparePassword(userOldPassword);
+    if (!isPasswordValid) {
+        throw new StandardError(400, "Wrong Old Password");
+    }
+
+    if (isPasswordValid && (findUser.userPassword === userNewPassword)) {
+        throw new StandardError(400, "Please Try a Different New Password");
+    }
+
+    findUser.userPassword = userNewPassword;
+    await findUser.save({ validateBeforeSave: false });
+
+    const response = new StandardResponse(200, {
+        passwordChanged: true,
+    }, "Password Changed Successfully")
+
+    return res.status(200).json(response.toJSON());
+};
 
 
